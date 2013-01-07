@@ -112,7 +112,9 @@ parse_level(Level) ->
             %% must be lager < 2.0
             lager_util:level_to_num(Level)
     end.
- 
+
+b(T) when is_integer(T) ->
+    T;
 b(T) when is_binary(T) ->
     T;    
 b(T) when is_list(T) ->
