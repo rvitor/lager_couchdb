@@ -31,14 +31,21 @@ init([Host, Port, Database, Level]) when is_atom(Level) ->
     init([Host, Port, Database, Level, {lager_default_formatter, ?DEFAULT_FORMAT}]);
     
 init([CouchDBHost, CouchDBPort, DatabaseName, Level, {Formatter, FormatterConfig}]) when is_atom(Level), is_atom(Formatter) ->
+    application:start(couchbeam),
     Server = couchbeam:server_connection(CouchDBHost, CouchDBPort),
     {ok, Database} = couchbeam:open_db(Server, DatabaseName),
-    {ok, #state{level = Level,
-                database = Database,
-                formatter = Formatter,
-                format_config = FormatterConfig
-        }
-    }.
+    try parse_level(Level) of
+        Lvl ->
+            {ok, #state{level = Level,
+                        database = Database,
+                        formatter = Formatter,
+                        format_config = FormatterConfig
+                }
+            }
+        catch
+            _:_ ->
+                {error, bad_log_level}
+        end.
 
 
 %% @private
