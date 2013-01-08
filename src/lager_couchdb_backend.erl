@@ -36,7 +36,7 @@ init([CouchDBHost, CouchDBPort, DatabaseName, Level, {Formatter, FormatterConfig
     {ok, Database} = couchbeam:open_db(Server, DatabaseName),
     try parse_level(Level) of
         Lvl ->
-            {ok, #state{level = Level,
+            {ok, #state{level = Lvl,
                         database = Database,
                         formatter = Formatter,
                         format_config = FormatterConfig
@@ -46,7 +46,6 @@ init([CouchDBHost, CouchDBPort, DatabaseName, Level, {Formatter, FormatterConfig
             _:_ ->
                 {error, bad_log_level}
         end.
-
 
 %% @private
 handle_call(get_loglevel, #state{level=Level} = State) ->
@@ -68,15 +67,33 @@ handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]},
     #state{level = L, database = Database} = State) when Level > L ->
     case lists:member(lager_couchdb_backend, Dest) of
         true ->
-            Doc = {[
-                    {<<"level">>, b(Level)},
-                    {<<"level_srt">>, b(LevelStr)},
-                    {<<"date">>, b(Date)}, 
-                    {<<"time">>, b(Time)}, 
-                    {<<"location">>, b(Location)}, 
-                    {<<"message">>, b(Message)}
-            ]},
-            couchbeam:save_doc(Database, Doc),
+            case re:run(Message, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
+                {match,[_All,{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
+                    FullTid = string:sub_string(Message, TidStart + 1, TidStart + TidLen),
+                    case string:str(FullTid, ":") of
+                        0 ->
+                            Tid = FullTid,
+                            ITid = null;
+                        N ->
+                            Tid = string:sub_string(FullTid, 1, N - 1),
+                            ITid = string:sub_string(FullTid, N + 1)
+                    end,
+                    AuthUri = string:sub_string(Message, AuthUriStart + 1, AuthUriStart + AuthUriLen),
+                    Doc = {[
+                            {<<"level">>, b(Level)},
+                            {<<"level_srt">>, b(LevelStr)},
+                            {<<"date">>, b(Date)}, 
+                            {<<"time">>, b(Time)}, 
+                            {<<"location">>, b(Location)},
+                            {<<"tid">>, b(Tid)},
+                            {<<"item_tid">>, b(ITid)},
+                            {<<"auth_uri">>, b(AuthUri)},
+                            {<<"message">>, b(Message)}
+                    ]},
+                    couchbeam:save_doc(Database, Doc);
+                _ ->
+                    ignore
+            end,
             {ok, State};
         false ->
             {ok, State}
@@ -84,15 +101,33 @@ handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]},
     
 handle_event({log, Level, {Date, Time}, [LevelStr, Location, Message]},
   #state{level = LogLevel, database = Database} = State) when Level =< LogLevel ->
-    Doc = {[
-            {<<"level">>, b(Level)},
-            {<<"level_srt">>, b(LevelStr)},
-            {<<"date">>, b(Date)}, 
-            {<<"time">>, b(Time)}, 
-            {<<"location">>, b(Location)}, 
-            {<<"message">>, b(Message)}
-    ]},
-    couchbeam:save_doc(Database, Doc),
+      case re:run(Message, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
+          {match,[_All,{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
+              FullTid = string:sub_string(Message, TidStart + 1, TidStart + TidLen),
+              case string:str(FullTid, ":") of
+                  0 ->
+                      Tid = FullTid,
+                      ITid = null;
+                  N ->
+                      Tid = string:sub_string(FullTid, 1, N - 1),
+                      ITid = string:sub_string(FullTid, N + 1)
+              end,
+              AuthUri = string:sub_string(Message, AuthUriStart + 1, AuthUriStart + AuthUriLen),
+              Doc = {[
+                      {<<"level">>, b(Level)},
+                      {<<"level_srt">>, b(LevelStr)},
+                      {<<"date">>, b(Date)}, 
+                      {<<"time">>, b(Time)}, 
+                      {<<"location">>, b(Location)},
+                      {<<"tid">>, b(Tid)},
+                      {<<"item_tid">>, b(ITid)},
+                      {<<"auth_uri">>, b(AuthUri)},
+                      {<<"message">>, b(Message)}
+              ]},
+              couchbeam:save_doc(Database, Doc);
+          _ ->
+              ignore
+      end,
     {ok, State};
 
 handle_event(_Event, State) ->
