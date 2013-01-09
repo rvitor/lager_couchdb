@@ -101,9 +101,10 @@ handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]},
     
 handle_event({log, Level, {Date, Time}, [LevelStr, Location, Message]},
   #state{level = LogLevel, database = Database} = State) when Level =< LogLevel ->
-      case re:run(Message, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
+      LMessage = binary_to_list(iolist_to_binary(Message)),
+      case re:run(LMessage, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
           {match,[_All,{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
-              FullTid = string:sub_string(Message, TidStart + 1, TidStart + TidLen),
+              FullTid = string:sub_string(LMessage, TidStart + 1, TidStart + TidLen),
               case string:str(FullTid, ":") of
                   0 ->
                       Tid = FullTid,
@@ -112,7 +113,7 @@ handle_event({log, Level, {Date, Time}, [LevelStr, Location, Message]},
                       Tid = string:sub_string(FullTid, 1, N - 1),
                       ITid = string:sub_string(FullTid, N + 1)
               end,
-              AuthUri = string:sub_string(Message, AuthUriStart + 1, AuthUriStart + AuthUriLen),
+              AuthUri = string:sub_string(LMessage, AuthUriStart + 1, AuthUriStart + AuthUriLen),
               Doc = {[
                       {<<"level">>, b(Level)},
                       {<<"level_srt">>, b(LevelStr)},
