@@ -63,13 +63,14 @@ handle_call(_Request, State) ->
     {ok, ok, State}.
 
 %% @private
-handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]},
+handle_event({log, Dest, Level, {Date, Time} = DateTime, [LevelStr, Location, Message]},
     #state{level = L, database = Database} = State) when Level > L ->
     case lists:member(lager_couchdb_backend, Dest) of
         true ->
-            case re:run(Message, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
-                {match,[_All,{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
-                    FullTid = string:sub_string(Message, TidStart + 1, TidStart + TidLen),
+            LMessage = binary_to_list(iolist_to_binary(Message)),
+            case re:run(LMessage, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
+                {match,[{MessageStart, MessageEnd},{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
+                    FullTid = string:sub_string(LMessage, TidStart + 1, TidStart + TidLen),
                     case string:str(FullTid, ":") of
                         0 ->
                             Tid = FullTid,
@@ -78,7 +79,8 @@ handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]},
                             Tid = string:sub_string(FullTid, 1, N - 1),
                             ITid = string:sub_string(FullTid, N + 1)
                     end,
-                    AuthUri = string:sub_string(Message, AuthUriStart + 1, AuthUriStart + AuthUriLen),
+                    AuthUri = string:sub_string(LMessage, AuthUriStart + 1, AuthUriStart + AuthUriLen),
+                    SubMessage = string:sub_string(LMessage, AuthUriStart + AuthUriLen + 4, MessageEnd),
                     Doc = {[
                             {<<"level">>, b(Level)},
                             {<<"level_srt">>, b(LevelStr)},
@@ -88,7 +90,8 @@ handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]},
                             {<<"tid">>, b(Tid)},
                             {<<"item_tid">>, b(ITid)},
                             {<<"auth_uri">>, b(AuthUri)},
-                            {<<"message">>, b(Message)}
+                            {<<"message">>, b(SubMessage)},
+                            {<<"time_stamp">>, date_time_to_unixtimestamp(DateTime}
                     ]},
                     couchbeam:save_doc(Database, Doc);
                 _ ->
@@ -99,11 +102,11 @@ handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]},
             {ok, State}
     end;
     
-handle_event({log, Level, {Date, Time}, [LevelStr, Location, Message]},
+handle_event({log, Level, {Date, Time} = DateTime, [LevelStr, Location, Message]},
   #state{level = LogLevel, database = Database} = State) when Level =< LogLevel ->
       LMessage = binary_to_list(iolist_to_binary(Message)),
       case re:run(LMessage, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
-          {match,[_All,{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
+          {match,[{MessageStart, MessageEnd},{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
               FullTid = string:sub_string(LMessage, TidStart + 1, TidStart + TidLen),
               case string:str(FullTid, ":") of
                   0 ->
@@ -114,6 +117,7 @@ handle_event({log, Level, {Date, Time}, [LevelStr, Location, Message]},
                       ITid = string:sub_string(FullTid, N + 1)
               end,
               AuthUri = string:sub_string(LMessage, AuthUriStart + 1, AuthUriStart + AuthUriLen),
+              SubMessage = string:sub_string(LMessage, AuthUriStart + AuthUriLen + 4, MessageEnd),
               Doc = {[
                       {<<"level">>, b(Level)},
                       {<<"level_srt">>, b(LevelStr)},
@@ -123,7 +127,8 @@ handle_event({log, Level, {Date, Time}, [LevelStr, Location, Message]},
                       {<<"tid">>, b(Tid)},
                       {<<"item_tid">>, b(ITid)},
                       {<<"auth_uri">>, b(AuthUri)},
-                      {<<"message">>, b(Message)}
+                      {<<"message">>, b(SubMessage)},
+                      {<<"time_stamp">>, date_time_to_unixtimestamp(DateTime}
               ]},
               couchbeam:save_doc(Database, Doc);
           _ ->
@@ -165,3 +170,7 @@ b(T) when is_list(T) ->
 b(T) when is_atom(T) ->
     <<_:4/binary, Bin/binary>> = term_to_binary(T),
     Bin.
+    
+date_time_to_unixtimestamp(DateTime) ->
+    calendar:datetime_to_gregorian_seconds(DateTime) -
+             calendar:datetime_to_gregorian_seconds( {{1970,1,1},{0,0,0}} ).
