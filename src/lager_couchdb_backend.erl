@@ -69,7 +69,7 @@ handle_event({log, Dest, Level, {Date, Time} = DateTime, [LevelStr, Location, Me
         true ->
             LMessage = binary_to_list(iolist_to_binary(Message)),
             case re:run(LMessage, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
-                {match,[{MessageStart, MessageEnd},{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
+                {match,[{_MessageStart, MessageEnd},{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
                     FullTid = string:sub_string(LMessage, TidStart + 1, TidStart + TidLen),
                     case string:str(FullTid, ":") of
                         0 ->
@@ -91,7 +91,7 @@ handle_event({log, Dest, Level, {Date, Time} = DateTime, [LevelStr, Location, Me
                             {<<"item_tid">>, b(ITid)},
                             {<<"auth_uri">>, b(AuthUri)},
                             {<<"message">>, b(SubMessage)},
-                            {<<"time_stamp">>, date_time_to_unixtimestamp(DateTime}
+                            {<<"time_stamp">>, date_time_to_unixtimestamp(DateTime)}
                     ]},
                     couchbeam:save_doc(Database, Doc);
                 _ ->
@@ -106,7 +106,7 @@ handle_event({log, Level, {Date, Time} = DateTime, [LevelStr, Location, Message]
   #state{level = LogLevel, database = Database} = State) when Level =< LogLevel ->
       LMessage = binary_to_list(iolist_to_binary(Message)),
       case re:run(LMessage, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
-          {match,[{MessageStart, MessageEnd},{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
+          {match,[{_MessageStart, MessageEnd},{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
               FullTid = string:sub_string(LMessage, TidStart + 1, TidStart + TidLen),
               case string:str(FullTid, ":") of
                   0 ->
@@ -128,7 +128,7 @@ handle_event({log, Level, {Date, Time} = DateTime, [LevelStr, Location, Message]
                       {<<"item_tid">>, b(ITid)},
                       {<<"auth_uri">>, b(AuthUri)},
                       {<<"message">>, b(SubMessage)},
-                      {<<"time_stamp">>, date_time_to_unixtimestamp(DateTime}
+                      {<<"time_stamp">>, date_time_to_unixtimestamp(DateTime)}
               ]},
               couchbeam:save_doc(Database, Doc);
           _ ->
