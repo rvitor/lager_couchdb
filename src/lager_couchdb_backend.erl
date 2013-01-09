@@ -63,7 +63,7 @@ handle_call(_Request, State) ->
     {ok, ok, State}.
 
 %% @private
-handle_event({log, Dest, Level, {Date, Time} = DateTime, [LevelStr, Location, Message]},
+handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]},
     #state{level = L, database = Database} = State) when Level > L ->
     case lists:member(lager_couchdb_backend, Dest) of
         true ->
@@ -81,6 +81,10 @@ handle_event({log, Dest, Level, {Date, Time} = DateTime, [LevelStr, Location, Me
                     end,
                     AuthUri = string:sub_string(LMessage, AuthUriStart + 1, AuthUriStart + AuthUriLen),
                     SubMessage = string:sub_string(LMessage, AuthUriStart + AuthUriLen + 4, MessageEnd),
+                    <<Y:32/bitstring, _:8/bitstring, M:16/bitstring, _:8/bitstring, D:16/bitstring>> = iolist_to_binary(Date),
+                    <<H:16/bitstring, _:8/bitstring, MN:16/bitstring, _:8/bitstring, S/bitstring>> = iolist_to_binary(Time),
+                    DateTime = {{list_to_integer(binary_to_list(Y)), list_to_integer(binary_to_list(M)), list_to_integer(binary_to_list(D))}, 
+                                {list_to_integer(binary_to_list(H)), list_to_integer(binary_to_list(MN)), list_to_float(binary_to_list(S))}},
                     Doc = {[
                             {<<"level">>, b(Level)},
                             {<<"level_srt">>, b(LevelStr)},
@@ -102,7 +106,7 @@ handle_event({log, Dest, Level, {Date, Time} = DateTime, [LevelStr, Location, Me
             {ok, State}
     end;
     
-handle_event({log, Level, {Date, Time} = DateTime, [LevelStr, Location, Message]},
+handle_event({log, Level, {Date, Time}, [LevelStr, Location, Message]},
   #state{level = LogLevel, database = Database} = State) when Level =< LogLevel ->
       LMessage = binary_to_list(iolist_to_binary(Message)),
       case re:run(LMessage, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
@@ -118,6 +122,12 @@ handle_event({log, Level, {Date, Time} = DateTime, [LevelStr, Location, Message]
               end,
               AuthUri = string:sub_string(LMessage, AuthUriStart + 1, AuthUriStart + AuthUriLen),
               SubMessage = string:sub_string(LMessage, AuthUriStart + AuthUriLen + 4, MessageEnd),
+              AuthUri = string:sub_string(LMessage, AuthUriStart + 1, AuthUriStart + AuthUriLen),
+              SubMessage = string:sub_string(LMessage, AuthUriStart + AuthUriLen + 4, MessageEnd),
+              <<Y:32/bitstring, _:8/bitstring, M:16/bitstring, _:8/bitstring, D:16/bitstring>> = iolist_to_binary(Date),
+              <<H:16/bitstring, _:8/bitstring, MN:16/bitstring, _:8/bitstring, S/bitstring>> = iolist_to_binary(Time),
+              DateTime = {{list_to_integer(binary_to_list(Y)), list_to_integer(binary_to_list(M)), list_to_integer(binary_to_list(D))}, 
+                          {list_to_integer(binary_to_list(H)), list_to_integer(binary_to_list(MN)), list_to_float(binary_to_list(S))}},
               Doc = {[
                       {<<"level">>, b(Level)},
                       {<<"level_srt">>, b(LevelStr)},
