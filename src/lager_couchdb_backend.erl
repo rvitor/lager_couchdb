@@ -127,7 +127,7 @@ handle_event({log, Level, {Date, Time}, [LevelStr, Location, Message]},
               <<Y:32/bitstring, _:8/bitstring, M:16/bitstring, _:8/bitstring, D:16/bitstring>> = iolist_to_binary(Date),
               <<H:16/bitstring, _:8/bitstring, MN:16/bitstring, _:8/bitstring, S:16/bitstring, _/binary>> = iolist_to_binary(Time),
               DateTime = {{list_to_integer(binary_to_list(Y)), list_to_integer(binary_to_list(M)), list_to_integer(binary_to_list(D))}, 
-                          {list_to_integer(binary_to_list(H)), list_to_integer(binary_to_list(MN)), list_to_float(binary_to_list(S))}},
+                          {list_to_integer(binary_to_list(H)), list_to_integer(binary_to_list(MN)), list_to_integer(binary_to_list(S))}},
               Doc = {[
                       {<<"level">>, b(Level)},
                       {<<"level_srt">>, b(LevelStr)},
