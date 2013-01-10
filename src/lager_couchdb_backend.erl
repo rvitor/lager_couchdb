@@ -68,7 +68,7 @@ handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]},
     case lists:member(lager_couchdb_backend, Dest) of
         true ->
             LMessage = binary_to_list(iolist_to_binary(Message)),
-            case re:run(LMessage, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
+            case re:run(LMessage, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\] .*") of
                 {match,[{_MessageStart, MessageEnd},{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
                     FullTid = string:sub_string(LMessage, TidStart + 1, TidStart + TidLen),
                     case string:str(FullTid, ":") of
@@ -109,7 +109,7 @@ handle_event({log, Dest, Level, {Date, Time}, [LevelStr, Location, Message]},
 handle_event({log, Level, {Date, Time}, [LevelStr, Location, Message]},
   #state{level = LogLevel, database = Database} = State) when Level =< LogLevel ->
       LMessage = binary_to_list(iolist_to_binary(Message)),
-      case re:run(LMessage, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\].*") of
+      case re:run(LMessage, "^\\[\"(.*)\"\\]\\[\"(.*)\"\\] .*") of
           {match,[{_MessageStart, MessageEnd},{TidStart,TidLen},{AuthUriStart,AuthUriLen}]} ->
               FullTid = string:sub_string(LMessage, TidStart + 1, TidStart + TidLen),
               case string:str(FullTid, ":") of
