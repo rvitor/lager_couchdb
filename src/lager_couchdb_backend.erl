@@ -31,6 +31,7 @@ init([Host, Port, Database, Level]) when is_atom(Level) ->
     init([Host, Port, Database, Level, {lager_default_formatter, ?DEFAULT_FORMAT}]);
     
 init([CouchDBHost, CouchDBPort, DatabaseName, Level, {Formatter, FormatterConfig}]) when is_atom(Level), is_atom(Formatter) ->
+    process_flag(trap_exit, true),
     application:start(couchbeam),
     Server = couchbeam:server_connection(CouchDBHost, CouchDBPort),
     {ok, Database} = couchbeam:open_db(Server, DatabaseName),
@@ -148,6 +149,10 @@ handle_event(_Event, State) ->
     {ok, State}.
 
 %% @private
+handle_info({'EXIT', _From, _Reason}, State) ->
+  gen_event:delete_handler(lager_event, lager_couchdb_backend, []),
+  {ok, State};
+  
 handle_info(_Info, State) ->
     {ok, State}.
 
